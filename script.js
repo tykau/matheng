@@ -138,7 +138,7 @@ document.getElementById('ai-submit').addEventListener('click', async () => {
   }
 
   try {
-    const res = await fetch("https/rulex.kpfu.ru/ai_solve", {
+    const res = await fetch("https://rulex.kpfu.ru/ai_solve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ problem: text })
