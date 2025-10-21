@@ -104,3 +104,64 @@ document.querySelectorAll('.connection-section .flip-card').forEach(card => {
     card.classList.toggle('flipped');
   });
 });
+
+function normalizeMathDelimiters(text) {
+  // Преобразуем блоки, где формулы даны между одиночными [ ] на отдельной строке
+  return text
+    .replace(/^\s*\[\s*\n?/gm, '\\[')   // открывающая [
+    .replace(/\n?\s*\]\s*$/gm, '\\]')   // закрывающая ]
+    .replace(/\n\[\n/g, '\n\\[\n')      // середина текста
+    .replace(/\n\]\n/g, '\n\\]\n');
+}
+
+
+document.getElementById('ai-submit').addEventListener('click', async () => {
+  const text = document.getElementById('ai-input').value.trim();
+  if (!text) return;
+
+  const output = document.getElementById('ai-output');
+  const ruBox = document.getElementById('ai-output-ru');
+  const enBox = document.getElementById('ai-output-en');
+
+  output.style.display = 'block';
+  ruBox.innerHTML = "⏳ Обработка...";
+  enBox.innerHTML = "";
+
+  // --- Функция для нормализации формул ---
+  function normalizeMathDelimiters(str) {
+    if (!str) return "";
+    // Преобразуем случаи, когда модель выдает [ ... ] вместо \[ ... \]
+    return str
+      .replace(/\n?\s*\[\s*\n?/g, '\n\\\\[')
+      .replace(/\n?\s*\]\s*\n?/g, '\n\\\\]\n')
+      .replace(/\(\s*(.*?)\s*\)/g, '($1)'); // на всякий случай убираем лишние пробелы
+  }
+
+  try {
+    const res = await fetch("https/rulex.kpfu.ru/ai_solve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ problem: text })
+    });
+
+    const data = await res.json();
+    if (data.error) {
+      ruBox.textContent = "Ошибка: " + data.error;
+      return;
+    }
+
+    // --- Нормализуем LaTeX-скобки ---
+    const ruFixed = normalizeMathDelimiters(data.ru);
+    const enFixed = normalizeMathDelimiters(data.en);
+
+    // --- Markdown -> HTML ---
+    ruBox.innerHTML = marked.parse(ruFixed);
+    enBox.innerHTML = marked.parse(enFixed);
+
+    // --- Перерисовываем формулы ---
+    if (window.MathJax) MathJax.typesetPromise();
+
+  } catch (err) {
+    ruBox.textContent = "Ошибка соединения с сервером.";
+  }
+});
